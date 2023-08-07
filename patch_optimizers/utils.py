@@ -40,7 +40,7 @@ def optimize_for_one_image(
         y=y,
         size=size,
     )
-    #  we want to maximize the cost
+    # - as we want to mimizing the cost
     cost = -cost_f(
         prediction=model(img_copy),
         ground_truth=ground_truth,

@@ -4,10 +4,7 @@ import cv2
 from patch_optimizers.utils import apply_path
 
 
-
-
 class SlidingWindowOptimizer:
-    
     def __init__(
         self,
         cost_f,
@@ -15,7 +12,7 @@ class SlidingWindowOptimizer:
         k_dots: int,
         dot_size: int,
         stride: int,
-        find_dots_that_fix_prediction: bool = False
+        find_dots_that_fix_prediction: bool = False,
     ) -> None:
         self._k_dots = k_dots
         self._dot_size = dot_size
@@ -53,19 +50,23 @@ class SlidingWindowOptimizer:
                         ground_truth=ground_truth,
                     )
                     if self._find_dots_that_fix_prediction:
-                        if cost <= highest_cost_so_far and (i, j) not in optimal_patches:
+                        if (
+                            cost <= highest_cost_so_far
+                            and (i, j) not in optimal_patches
+                        ):
                             highest_cost_so_far = cost
                             best_position_so_far = (i, j)
                     else:
-                        if cost >= highest_cost_so_far and (i, j) not in optimal_patches:
+                        if (
+                            cost >= highest_cost_so_far
+                            and (i, j) not in optimal_patches
+                        ):
                             highest_cost_so_far = cost
                             best_position_so_far = (i, j)
-                            
+
             optimal_patches.append(best_position_so_far)
             if self._find_dots_that_fix_prediction:
                 optimal_cost = min(optimal_cost, highest_cost_so_far)
             else:
                 optimal_cost = max(optimal_cost, highest_cost_so_far)
         return optimal_cost, optimal_patches
-    
-

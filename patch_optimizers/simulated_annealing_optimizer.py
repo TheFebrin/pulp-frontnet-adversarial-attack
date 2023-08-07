@@ -30,6 +30,7 @@ class SimulatedAnnealingOptimizer:
         self.cost = self._objective_function(x=x0[0], y=x0[1])
         self.best_cost = self.cost
         self.cost_history = []
+        self.solution_history = []
         self.good_jumps = 0
         self.random_jumps = 0
         assert len(x0) == 2
@@ -115,5 +116,6 @@ class SimulatedAnnealingOptimizer:
                 self.best_cost = self.cost
                 self.best_solution = self.solution
             self.cost_history.append(self.cost)
+            self.solution_history.append(self.solution)
         
         self.print_summary()
