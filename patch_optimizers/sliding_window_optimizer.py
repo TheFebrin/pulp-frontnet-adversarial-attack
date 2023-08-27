@@ -2,9 +2,10 @@ from typing import List, Tuple
 import torch
 import cv2
 from patch_optimizers.utils import apply_path
+from patch_optimizers.optimizer_interface import Optimizer
 
 
-class SlidingWindowOptimizer:
+class SlidingWindowOptimizer(Optimizer):
     def __init__(
         self,
         cost_f,
@@ -21,12 +22,18 @@ class SlidingWindowOptimizer:
         self._model = model
         self._find_dots_that_fix_prediction = find_dots_that_fix_prediction
 
+    def __repr__(self) -> str:
+        return type(self).__name__
+
     def run(
         self,
         img: torch.Tensor,
         ground_truth: torch.Tensor,
     ) -> Tuple[float, List[Tuple[float, float]]]:
-        n, m = img[0][0].shape
+        """
+        img: shape (1, n, m)
+        """
+        n, m = img[0].shape
         optimal_patches = []
         optimal_cost = 0
         for _ in range(self._k_dots):
@@ -40,13 +47,13 @@ class SlidingWindowOptimizer:
                 for j in range(0, m, self._stride):
                     img_copy = img.clone()
                     apply_path(
-                        img=img_copy[0][0].numpy(),
+                        img=img_copy[0].numpy(),
                         x=i,
                         y=j,
                         size=self._dot_size,
                     )
                     cost = self._cost_f(
-                        prediction=self._model(img_copy),
+                        prediction=self._model(img_copy.unsqueeze(0)),
                         ground_truth=ground_truth,
                     )
                     if self._find_dots_that_fix_prediction:

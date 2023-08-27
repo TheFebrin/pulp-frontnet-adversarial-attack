@@ -1,12 +1,14 @@
 from typing import Tuple, List
 import torch
+import random
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
 from patch_optimizers.utils import optimize_for_one_image, apply_path
+from patch_optimizers.optimizer_interface import Optimizer
 
 
-class GeneticOptimizer:
+class GeneticOptimizer(Optimizer):
     def __init__(
         self,
         n_iters: int,
@@ -17,6 +19,7 @@ class GeneticOptimizer:
         cost_f,
         dot_size: int,
         elitism: bool,
+        debug: bool,
         chromosome_len: int = 1,
         K=0.9,
         tau0=None,
@@ -43,6 +46,7 @@ class GeneticOptimizer:
         self._max_x = max_x
         self._max_y = max_y
         self._elitism = elitism
+        self._debug = debug
         self.population_size = population_size
         self.K = K
         self.tau0 = tau0
@@ -71,6 +75,12 @@ class GeneticOptimizer:
         self.population_history = []
         self.best_solution_history = []
 
+    def __repr__(self) -> str:
+        base_name = f"{type(self).__name__}"
+        if self._elitism:
+            base_name += "Elitism"
+        return base_name 
+    
     def _parents_selection(self):
         fitness_values = self.cost
         fitness_values = fitness_values - fitness_values.min()
@@ -136,7 +146,7 @@ class GeneticOptimizer:
         children, children_sigmas = [], []
 
         for _ in range(self.population_size):
-            parents_ids = np.random.sample(range(len(parents)), 2)
+            parents_ids = random.sample(range(len(parents)), 2)
             child = self._crossover(
                 parent1_id=parents_ids[0],
                 parent2_id=parents_ids[1],
@@ -166,13 +176,13 @@ class GeneticOptimizer:
         y = int(y)
         img_copy = img.clone()
         apply_path(
-            img=img_copy[0][0].numpy(),
+            img=img_copy[0].numpy(),
             x=x,
             y=y,
             size=self._dot_size,
         )
         return self._cost_f(
-            prediction=self._model(img_copy),
+            prediction=self._model(img_copy.unsqueeze(0)),
             ground_truth=ground_truth,
         )
 
@@ -193,7 +203,7 @@ class GeneticOptimizer:
         img: torch.Tensor,
         ground_truth: torch.Tensor,
     ) -> Tuple[float, List[Tuple[float, float]]]:
-        for _ in tqdm(range(self._n_iters), desc="Running genetic optimizer ..."):
+        for _ in tqdm(range(self._n_iters), desc="Running genetic optimizer ...", disable=not self._debug):
             self._update_cost_for_population(
                 img=img,
                 ground_truth=ground_truth,
@@ -204,6 +214,7 @@ class GeneticOptimizer:
             img=img,
             ground_truth=ground_truth,
         )
+        return self.cost.max(), self.best_solution_history[-1]
 
     def best_solution(self):
         return self.population[self.cost.argmax()]

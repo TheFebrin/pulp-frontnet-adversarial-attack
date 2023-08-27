@@ -7,7 +7,7 @@ def apply_path(
     x: int,
     y: int,
     size: int,
-) -> torch.Tensor:
+) -> None:
     cv2.circle(img, (x, y), size, [255], -1)
 
 
@@ -17,7 +17,7 @@ def single_vector_element_cost_f(
     element_index: int,
 ) -> float:
     assert 0 <= element_index <= 3
-    ground_truth = ground_truth[0]
+    assert len(ground_truth.shape) == 1
     res = ((prediction[element_index] - ground_truth[element_index]) ** 2).detach().numpy().squeeze()
     return res
 
@@ -35,14 +35,14 @@ def optimize_for_one_image(
     y = int(y)
     img_copy = img.clone()
     apply_path(
-        img=img_copy[0][0].numpy(),
+        img=img_copy[0].numpy(),
         x=x,
         y=y,
         size=size,
     )
     # - as we want to mimizing the cost
     cost = -cost_f(
-        prediction=model(img_copy),
+        prediction=model(img_copy.unsqueeze(0)),
         ground_truth=ground_truth,
     )
     return cost

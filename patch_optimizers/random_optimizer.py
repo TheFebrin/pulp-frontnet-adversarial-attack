@@ -3,9 +3,10 @@ import torch
 import cv2
 import numpy as np
 from patch_optimizers.utils import apply_path
+from patch_optimizers.optimizer_interface import Optimizer
 
 
-class RandomOptimizer:
+class RandomOptimizer(Optimizer):
     def __init__(
         self,
         cost_f,
@@ -20,12 +21,18 @@ class RandomOptimizer:
         self._cost_f = cost_f
         self._model = model
 
+    def __repr__(self) -> str:
+        return type(self).__name__
+
     def run(
         self,
         img: torch.Tensor,
         ground_truth: torch.Tensor,
     ) -> Tuple[float, List[Tuple[float, float]]]:
-        n, m = img[0][0].shape
+        """
+        img: shape (1, n, m)
+        """
+        n, m = img[0].shape
 
         generated_dots = np.hstack(
             (
@@ -38,13 +45,13 @@ class RandomOptimizer:
         for x, y in generated_dots:
             img_copy = img.clone()
             apply_path(
-                img=img_copy[0][0].numpy(),
+                img=img_copy[0].numpy(),
                 x=x,
                 y=y,
                 size=self._dot_size,
             )
             cost = -self._cost_f(
-                prediction=self._model(img_copy),
+                prediction=self._model(img_copy.unsqueeze(0)),
                 ground_truth=ground_truth,
             )
             cost_for_each_dot.append(cost)
@@ -61,7 +68,7 @@ class RandomOptimizer:
         for i in range(self._k_dots):
             x, y, cost = generated_dots[i]
             apply_path(
-                img=img_copy[0][0].numpy(),
+                img=img_copy[0].numpy(),
                 x=int(x),
                 y=int(y),
                 size=self._dot_size,
@@ -69,7 +76,7 @@ class RandomOptimizer:
             optimal_patches.append((int(x), int(y)))
 
         optimal_cost = self._cost_f(
-            prediction=self._model(img_copy),
+            prediction=self._model(img_copy.unsqueeze(0)),
             ground_truth=ground_truth,
         )
         return optimal_cost, optimal_patches
