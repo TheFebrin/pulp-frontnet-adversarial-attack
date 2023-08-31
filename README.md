@@ -17,7 +17,13 @@ $ unzip pulp-frontnet-data.zip
 $ rm pulp-frontnet-data.zip
 ```
 
+## Install
+```
+pip install -r requirements.txt
+pip install -e .
+```
+
 ## Troubleshooting
 * `ModuleNotFoundError: No module named 'nemo'`
-    * `!pip install git+https://github.com/NVIDIA/NeMo.git --user`
     * or `!pip install nemo_toolkit --user`
+    * `!pip install git+https://github.com/NVIDIA/NeMo.git --user`

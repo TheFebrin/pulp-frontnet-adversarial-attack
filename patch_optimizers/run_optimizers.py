@@ -18,21 +18,50 @@ from patch_optimizers.genetic_optimizer import GeneticOptimizer
 from patch_optimizers.optimizer_interface import Optimizer
 
 
-def create_optimizers_factories(model, element_index: int) -> List[Callable[[], Optimizer]]:
+def create_optimizers_factories(model, element_index: int, targeted_attack: bool) -> List[Callable[[], Optimizer]]:
+
+    def __cost_f_one_element(prediction, ground_truth):
+        return single_vector_element_cost_f(
+            prediction, ground_truth, element_index=element_index
+        )
+    
+    def __cost_f_all_elements(prediction, ground_truth):
+        assert len(ground_truth.shape) == 1
+        diffs = [
+            (prediction[i] - ground_truth[i]) ** 2
+            for i in range(3)
+        ]
+        return sum(diffs).detach().numpy().squeeze()
+
+    def __cost_targeted_attack(prediction, ground_truth):
+        ground_truth = [
+            0, 0, 0
+        ]
+        diffs = [
+            (prediction[i] - ground_truth[i]) ** 2
+            for i in range(3)
+        ]
+        return sum(diffs).detach().numpy().squeeze()
+
+    if targeted_attack:
+        print("Using targeted attack cost function. Assuming that ground truth is [0, 0, 0]")
+        cost_f = __cost_targeted_attack
+    else:
+        if element_index == 123:
+            cost_f = __cost_f_one_element
+        else:
+            cost_f = __cost_f_all_elements
+    
     optimizer_factories: List[Callable[[], Optimizer]] = [
         lambda: RandomOptimizer(
-            cost_f=lambda prediction, ground_truth: single_vector_element_cost_f(
-                prediction, ground_truth, element_index=element_index
-            ),
+            cost_f=cost_f,
             model=model,
             n_dots_to_generate=1000,
             k_dots=1,
             dot_size=10,
         ),
         lambda: SlidingWindowOptimizer(
-            cost_f=lambda prediction, ground_truth: single_vector_element_cost_f(
-                prediction, ground_truth, element_index=element_index
-            ),
+            cost_f=cost_f,
             model=model,
             k_dots=1,
             dot_size=10,
@@ -43,18 +72,14 @@ def create_optimizers_factories(model, element_index: int) -> List[Callable[[], 
             stride=10,
             max_iters=1000,
             model=model,
-            cost_f=lambda prediction, ground_truth: single_vector_element_cost_f(
-                prediction, ground_truth, element_index=element_index
-            ),
+            cost_f=cost_f,
             debug=False,
         ),
         lambda: GeneticOptimizer(
             n_iters=20,
             population_size=100,
             model=model,
-            cost_f=lambda prediction, ground_truth: single_vector_element_cost_f(
-                prediction, ground_truth, element_index=element_index
-            ),
+            cost_f=cost_f,
             max_x=160,
             max_y=96,
             dot_size=10,
@@ -65,9 +90,7 @@ def create_optimizers_factories(model, element_index: int) -> List[Callable[[], 
             n_iters=20,
             population_size=100,
             model=model,
-            cost_f=lambda prediction, ground_truth: single_vector_element_cost_f(
-                prediction, ground_truth, element_index=element_index
-            ),
+            cost_f=cost_f,
             max_x=160,
             max_y=96,
             dot_size=10,
@@ -118,13 +141,19 @@ def main() -> None:
     model = create_model()
     test_set = load_test_set()
         
-    element_index = int(input("Enter element index to attack: (0=x, 1=y, 2=z)"))
-    assert element_index in [0, 1, 2]
+    targeted_attack = input("Targeted attack? (y/n)")
+    targeted_attack = targeted_attack == "y"
+
+    if not targeted_attack:
+        element_index = int(input("Enter element index to attack: (0=x, 1=y, 2=z, 123=xyz)"))
+        assert element_index in [0, 1, 2, 123]
+    else:
+        element_index = None
 
     db_name = input("Enter db name: ")
     db = TinyDB(db_name)
     
-    optimizer_factories = create_optimizers_factories(model=model, element_index=element_index)
+    optimizer_factories = create_optimizers_factories(model=model, element_index=element_index, targeted_attack=targeted_attack)
     for i, optimizer_factory in enumerate(optimizer_factories):
         print(f"{i}: {str(optimizer_factory())}")
 
