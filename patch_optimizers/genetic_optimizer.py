@@ -79,8 +79,8 @@ class GeneticOptimizer(Optimizer):
         base_name = f"{type(self).__name__}"
         if self._elitism:
             base_name += "Elitism"
-        return base_name 
-    
+        return base_name
+
     def _parents_selection(self):
         fitness_values = self.cost
         fitness_values = fitness_values - fitness_values.min()
@@ -170,24 +170,24 @@ class GeneticOptimizer(Optimizer):
             self.sigmas[worst_indi] = best_sigmas_from_previous_iteration
 
     def _objective_function(
-        self, x: int, y: int, img: torch.Tensor, ground_truth: torch.Tensor
+        self,
+        x: int,
+        y: int,
+        img: torch.Tensor,
+        model_raw_prediction: torch.Tensor,
     ) -> float:
-        x = int(x)
-        y = int(y)
-        img_copy = img.clone()
-        apply_path(
-            img=img_copy[0].numpy(),
+        return optimize_for_one_image(
+            img=img,
+            model_raw_prediction=model_raw_prediction,
+            size=self._dot_size,
             x=x,
             y=y,
-            size=self._dot_size,
-        )
-        return self._cost_f(
-            prediction=self._model(img_copy.unsqueeze(0)),
-            ground_truth=ground_truth,
+            model=self._model,
+            cost_f=self._cost_f,
         )
 
     def _update_cost_for_population(
-        self, img: torch.Tensor, ground_truth: torch.Tensor
+        self, img: torch.Tensor, model_raw_prediction: torch.Tensor
     ) -> None:
         for i in range(self.population_size):
             # Note: assume that each individual in population is a 2D point
@@ -195,24 +195,28 @@ class GeneticOptimizer(Optimizer):
                 x=self.population[i][0],
                 y=self.population[i][1],
                 img=img,
-                ground_truth=ground_truth,
+                model_raw_prediction=model_raw_prediction,
             )
 
     def run(
         self,
         img: torch.Tensor,
-        ground_truth: torch.Tensor,
     ) -> Tuple[float, List[Tuple[float, float]]]:
-        for _ in tqdm(range(self._n_iters), desc="Running genetic optimizer ...", disable=not self._debug):
+        model_raw_prediction = self._model(img.unsqueeze(0))
+        for _ in tqdm(
+            range(self._n_iters),
+            desc="Running genetic optimizer ...",
+            disable=not self._debug,
+        ):
             self._update_cost_for_population(
                 img=img,
-                ground_truth=ground_truth,
+                model_raw_prediction=model_raw_prediction,
             )
             self._select_new_population()
 
         self._update_cost_for_population(
             img=img,
-            ground_truth=ground_truth,
+            model_raw_prediction=model_raw_prediction,
         )
         return self.cost.max(), self.best_solution_history[-1]
 

@@ -28,7 +28,6 @@ class SlidingWindowOptimizer(Optimizer):
     def run(
         self,
         img: torch.Tensor,
-        ground_truth: torch.Tensor,
     ) -> Tuple[float, List[Tuple[float, float]]]:
         """
         img: shape (1, n, m)
@@ -36,6 +35,8 @@ class SlidingWindowOptimizer(Optimizer):
         n, m = img[0].shape
         optimal_patches = []
         optimal_cost = 0
+
+        model_raw_prediction = self._model(img.unsqueeze(0))
         for _ in range(self._k_dots):
             best_position_so_far = None
             if self._find_dots_that_fix_prediction:
@@ -52,9 +53,9 @@ class SlidingWindowOptimizer(Optimizer):
                         y=j,
                         size=self._dot_size,
                     )
-                    cost = self._cost_f(
-                        prediction=self._model(img_copy.unsqueeze(0)),
-                        ground_truth=ground_truth,
+                    cost = -self._cost_f(
+                        prediction_with_patch=self._model(img_copy.unsqueeze(0)),
+                        model_raw_prediction=model_raw_prediction,
                     )
                     if self._find_dots_that_fix_prediction:
                         if (

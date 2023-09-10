@@ -10,6 +10,5 @@ class Optimizer(ABC):
     def run(
         self,
         img: torch.Tensor,
-        ground_truth: torch.Tensor,
     ) -> Tuple[float, List[Tuple[float, float]]]:
         pass

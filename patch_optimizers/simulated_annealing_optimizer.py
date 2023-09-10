@@ -44,11 +44,11 @@ class SimulatedAnnealingOptimizer(Optimizer):
         x: int,
         y: int,
         img: torch.Tensor,
-        ground_truth: torch.Tensor,
+        model_raw_prediction: torch.Tensor,
     ) -> float:
         return optimize_for_one_image(
             img=img,
-            ground_truth=ground_truth,
+            model_raw_prediction=model_raw_prediction,
             size=self._dot_size,
             x=x,
             y=y,
@@ -68,11 +68,8 @@ class SimulatedAnnealingOptimizer(Optimizer):
         y = min(y, 96)
         return (x, y)
 
-    def print_summary(self, img: torch.Tensor, ground_truth: torch.Tensor) -> None:
-        raw_cost = -self._cost_f(
-            prediction=self._model(img.unsqueeze(0)),
-            ground_truth=ground_truth,
-        )
+    def print_summary(self, img: torch.Tensor) -> None:
+        prediction=self._model(img.unsqueeze(0)),
         img_copy = img.clone()
         apply_path(
             img_copy[0].numpy(),
@@ -80,13 +77,16 @@ class SimulatedAnnealingOptimizer(Optimizer):
             y=int(self.best_solution[1]),
             size=self._dot_size,
         )
+        cost = -self._cost_f(
+            prediction_with_patch=prediction,
+            model_raw_prediction=self._model(img.unsqueeze(0)),
+        )
         print(f"Steps: {self._max_iters}")
         print(f"Best solution: {self.best_solution}")
         print(f"Best cost: {self.best_cost}")
         print(f"Number of good jumps: {self.good_jumps}")
         print(f"Number of random jumps: {self.random_jumps}")
-        print(f"Raw cost: {raw_cost}")
-        print(f"Ground truth: {ground_truth}")
+        print(f"Cost: {cost}")
         raw_pred = self._model(img)
         raw_pred = list(
             map(lambda x: round(float(x.detach().numpy().squeeze()), 4), raw_pred)
@@ -110,8 +110,8 @@ class SimulatedAnnealingOptimizer(Optimizer):
     def run(
         self,
         img: torch.Tensor,
-        ground_truth: torch.Tensor,
     ) -> Tuple[float, List[Tuple[float, float]]]:
+        model_raw_prediction = self._model(img.unsqueeze(0))
         for t in tqdm(
             range(self._max_iters),
             desc="Simulated Annealing",
@@ -123,7 +123,7 @@ class SimulatedAnnealingOptimizer(Optimizer):
                 x=x,
                 y=y,
                 img=img,
-                ground_truth=ground_truth,
+                model_raw_prediction=model_raw_prediction,
             )
 
             # we minimize the cost function
@@ -146,5 +146,5 @@ class SimulatedAnnealingOptimizer(Optimizer):
             self.solution_history.append(self.solution)
 
         if self._debug:
-            self.print_summary(img=img, ground_truth=ground_truth)
+            self.print_summary(img=img)
         return -self.best_cost, self.best_solution

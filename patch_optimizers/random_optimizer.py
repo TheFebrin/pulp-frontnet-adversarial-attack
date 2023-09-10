@@ -27,7 +27,6 @@ class RandomOptimizer(Optimizer):
     def run(
         self,
         img: torch.Tensor,
-        ground_truth: torch.Tensor,
     ) -> Tuple[float, List[Tuple[float, float]]]:
         """
         img: shape (1, n, m)
@@ -41,7 +40,8 @@ class RandomOptimizer(Optimizer):
             )
         )
         cost_for_each_dot = []
-
+        model_raw_prediction = self._model(img.unsqueeze(0))
+        
         for x, y in generated_dots:
             img_copy = img.clone()
             apply_path(
@@ -51,8 +51,8 @@ class RandomOptimizer(Optimizer):
                 size=self._dot_size,
             )
             cost = -self._cost_f(
-                prediction=self._model(img_copy.unsqueeze(0)),
-                ground_truth=ground_truth,
+                prediction_with_patch=self._model(img_copy.unsqueeze(0)),
+                model_raw_prediction=model_raw_prediction,
             )
             cost_for_each_dot.append(cost)
 
@@ -76,7 +76,7 @@ class RandomOptimizer(Optimizer):
             optimal_patches.append((int(x), int(y)))
 
         optimal_cost = self._cost_f(
-            prediction=self._model(img_copy.unsqueeze(0)),
-            ground_truth=ground_truth,
+            prediction_with_patch=self._model(img_copy.unsqueeze(0)),
+            model_raw_prediction=model_raw_prediction,
         )
         return optimal_cost, optimal_patches

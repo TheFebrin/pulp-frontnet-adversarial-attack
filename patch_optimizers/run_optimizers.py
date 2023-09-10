@@ -18,40 +18,37 @@ from patch_optimizers.genetic_optimizer import GeneticOptimizer
 from patch_optimizers.optimizer_interface import Optimizer
 
 
-def create_optimizers_factories(model, element_index: int, targeted_attack: bool) -> List[Callable[[], Optimizer]]:
-
-    def __cost_f_one_element(prediction, ground_truth):
+def create_optimizers_factories(
+    model, element_index: int, targeted_attack: bool
+) -> List[Callable[[], Optimizer]]:
+    def __cost_f_one_element(prediction_with_patch, model_raw_prediction):
         return single_vector_element_cost_f(
-            prediction, ground_truth, element_index=element_index
+            prediction_with_patch=prediction_with_patch,
+            model_raw_prediction=model_raw_prediction, 
+            element_index=element_index
         )
-    
-    def __cost_f_all_elements(prediction, ground_truth):
-        assert len(ground_truth.shape) == 1
-        diffs = [
-            (prediction[i] - ground_truth[i]) ** 2
-            for i in range(3)
-        ]
+
+    def __cost_f_all_elements(prediction_with_patch, model_raw_prediction):
+        diffs = [(prediction_with_patch[i] - model_raw_prediction[i]) ** 2 for i in range(3)]
         return sum(diffs).detach().numpy().squeeze()
 
-    def __cost_targeted_attack(prediction, ground_truth):
-        ground_truth = [
-            0, 0, 0
-        ]
-        diffs = [
-            (prediction[i] - ground_truth[i]) ** 2
-            for i in range(3)
-        ]
-        return sum(diffs).detach().numpy().squeeze()
+    def __cost_targeted_attack(prediction_with_patch, model_raw_prediction):
+        ground_truth = [0, 0, 0]
+        diffs = [(prediction_with_patch[i] - ground_truth[i]) ** 2 for i in range(3)]
+        # - as we want to get closer to (0, 0, 0)
+        return -sum(diffs).detach().numpy().squeeze()
 
     if targeted_attack:
-        print("Using targeted attack cost function. Assuming that ground truth is [0, 0, 0]")
+        print(
+            "Using targeted attack cost function. Assuming that ground truth is [0, 0, 0]"
+        )
         cost_f = __cost_targeted_attack
     else:
         if element_index == 123:
-            cost_f = __cost_f_one_element
-        else:
             cost_f = __cost_f_all_elements
-    
+        else:
+            cost_f = __cost_f_one_element
+
     optimizer_factories: List[Callable[[], Optimizer]] = [
         lambda: RandomOptimizer(
             cost_f=cost_f,
@@ -126,7 +123,7 @@ def run_process(optimizer_factory, test_set, db):
         db_record = {
             "image_idx": i,
         }
-        optimal_cost, optimal_patches = optimizer.run(img=x, ground_truth=y)
+        optimal_cost, optimal_patches = optimizer.run(img=x)
         if isinstance(optimal_patches, list):
             optimal_patches = optimal_patches[0]
         optimal_cost = float(optimal_cost)
@@ -140,20 +137,24 @@ def run_process(optimizer_factory, test_set, db):
 def main() -> None:
     model = create_model()
     test_set = load_test_set()
-        
+
     targeted_attack = input("Targeted attack? (y/n)")
     targeted_attack = targeted_attack == "y"
 
     if not targeted_attack:
-        element_index = int(input("Enter element index to attack: (0=x, 1=y, 2=z, 123=xyz)"))
+        element_index = int(
+            input("Enter element index to attack: (0=x, 1=y, 2=z, 123=xyz)")
+        )
         assert element_index in [0, 1, 2, 123]
     else:
         element_index = None
 
     db_name = input("Enter db name: ")
     db = TinyDB(db_name)
-    
-    optimizer_factories = create_optimizers_factories(model=model, element_index=element_index, targeted_attack=targeted_attack)
+
+    optimizer_factories = create_optimizers_factories(
+        model=model, element_index=element_index, targeted_attack=targeted_attack
+    )
     for i, optimizer_factory in enumerate(optimizer_factories):
         print(f"{i}: {str(optimizer_factory())}")
 
