@@ -128,5 +128,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-pulp-frontnet/
-pulp_frontnet/
+.DS_Store
