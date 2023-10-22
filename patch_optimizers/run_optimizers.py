@@ -24,12 +24,14 @@ def create_optimizers_factories(
     def __cost_f_one_element(prediction_with_patch, model_raw_prediction):
         return single_vector_element_cost_f(
             prediction_with_patch=prediction_with_patch,
-            model_raw_prediction=model_raw_prediction, 
-            element_index=element_index
+            model_raw_prediction=model_raw_prediction,
+            element_index=element_index,
         )
 
     def __cost_f_all_elements(prediction_with_patch, model_raw_prediction):
-        diffs = [(prediction_with_patch[i] - model_raw_prediction[i]) ** 2 for i in range(3)]
+        diffs = [
+            (prediction_with_patch[i] - model_raw_prediction[i]) ** 2 for i in range(3)
+        ]
         return sum(diffs).detach().numpy().squeeze()
 
     def __cost_targeted_attack(prediction_with_patch, model_raw_prediction):
@@ -134,6 +136,22 @@ def run_process(optimizer_factory, test_set, db):
         db.insert(db_record)
 
 
+index_to_db_name = {
+    0: "random",
+    1: "sliding",
+    2: "annealing",
+    3: "genetic",
+    4: "genetic_elitism",
+}
+
+element_index_to_name = {
+    0: "x",
+    1: "y",
+    2: "z",
+    123: "xyz",
+}
+
+
 def main() -> None:
     model = create_model()
     test_set = load_test_set()
@@ -149,16 +167,18 @@ def main() -> None:
     else:
         element_index = None
 
-    db_name = input("Enter db name: ")
-    db = TinyDB(db_name)
-
     optimizer_factories = create_optimizers_factories(
         model=model, element_index=element_index, targeted_attack=targeted_attack
     )
     for i, optimizer_factory in enumerate(optimizer_factories):
         print(f"{i}: {str(optimizer_factory())}")
 
-    factory_idx = input("Enter optimizer factory index: ")
+    factory_idx = int(input("Enter optimizer factory index: "))
+
+    db = TinyDB(
+        f"results_dbs/{index_to_db_name[factory_idx]}_{element_index_to_name[element_index]}.json"
+    )
+
     run_process(
         optimizer_factory=optimizer_factories[int(factory_idx)],
         test_set=test_set,
