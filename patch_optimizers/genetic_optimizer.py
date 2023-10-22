@@ -176,15 +176,18 @@ class GeneticOptimizer(Optimizer):
         img: torch.Tensor,
         model_raw_prediction: torch.Tensor,
     ) -> float:
-        return optimize_for_one_image(
-            img=img,
-            model_raw_prediction=model_raw_prediction,
-            size=self._dot_size,
+        img_copy = img.clone()
+        apply_path(
+            img=img_copy[0].numpy(),
             x=x,
             y=y,
-            model=self._model,
-            cost_f=self._cost_f,
+            size=self._dot_size,
         )
+        cost = self._cost_f(
+            prediction_with_patch=self._model(img_copy.unsqueeze(0)),
+            model_raw_prediction=model_raw_prediction,
+        )
+        return cost
 
     def _update_cost_for_population(
         self, img: torch.Tensor, model_raw_prediction: torch.Tensor
@@ -192,8 +195,8 @@ class GeneticOptimizer(Optimizer):
         for i in range(self.population_size):
             # Note: assume that each individual in population is a 2D point
             self.cost[i] = self._objective_function(
-                x=self.population[i][0],
-                y=self.population[i][1],
+                x=int(self.population[i][0]),
+                y=int(self.population[i][1]),
                 img=img,
                 model_raw_prediction=model_raw_prediction,
             )

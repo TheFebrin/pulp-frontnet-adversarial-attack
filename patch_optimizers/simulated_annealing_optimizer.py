@@ -46,15 +46,18 @@ class SimulatedAnnealingOptimizer(Optimizer):
         img: torch.Tensor,
         model_raw_prediction: torch.Tensor,
     ) -> float:
-        return optimize_for_one_image(
-            img=img,
-            model_raw_prediction=model_raw_prediction,
-            size=self._dot_size,
+        img_copy = img.clone()
+        apply_path(
+            img=img_copy[0].numpy(),
             x=x,
             y=y,
-            model=self._model,
-            cost_f=self._cost_f,
+            size=self._dot_size,
         )
+        cost = self._cost_f(
+            prediction_with_patch=self._model(img_copy.unsqueeze(0)),
+            model_raw_prediction=model_raw_prediction,
+        )
+        return cost
 
     def _random_neighbor(self) -> Tuple[int, int]:
         # img size is 160 x 96
@@ -69,17 +72,12 @@ class SimulatedAnnealingOptimizer(Optimizer):
         return (x, y)
 
     def print_summary(self, img: torch.Tensor) -> None:
-        prediction=self._model(img.unsqueeze(0)),
-        img_copy = img.clone()
-        apply_path(
-            img_copy[0].numpy(),
+        model_raw_prediction = self._model(img.unsqueeze(0))
+        cost = self._objective_function(
             x=int(self.best_solution[0]),
             y=int(self.best_solution[1]),
-            size=self._dot_size,
-        )
-        cost = -self._cost_f(
-            prediction_with_patch=prediction,
-            model_raw_prediction=self._model(img.unsqueeze(0)),
+            img=img,
+            model_raw_prediction=model_raw_prediction,
         )
         print(f"Steps: {self._max_iters}")
         print(f"Best solution: {self.best_solution}")
@@ -87,12 +85,14 @@ class SimulatedAnnealingOptimizer(Optimizer):
         print(f"Number of good jumps: {self.good_jumps}")
         print(f"Number of random jumps: {self.random_jumps}")
         print(f"Cost: {cost}")
-        raw_pred = self._model(img)
         raw_pred = list(
-            map(lambda x: round(float(x.detach().numpy().squeeze()), 4), raw_pred)
+            map(
+                lambda x: round(float(x.detach().numpy().squeeze()), 4),
+                model_raw_prediction,
+            )
         )
-        print(f"Prediction on raw: {raw_pred}")
-        patch_pred = self._model(img_copy)
+        print(f"Prediction on raw: {model_raw_prediction}")
+        patch_pred = self._model(img.unsqueeze(0))
         patch_pred = list(
             map(lambda x: round(float(x.detach().numpy().squeeze()), 4), patch_pred)
         )
@@ -103,6 +103,13 @@ class SimulatedAnnealingOptimizer(Optimizer):
         plt.title("Cost history")
         plt.show()
 
+        img_copy = img.clone()
+        apply_path(
+            img=img_copy[0].numpy(),
+            x=int(self.best_solution[0]),
+            y=int(self.best_solution[1]),
+            size=self._dot_size,
+        )
         plt.imshow(img_copy[0].numpy(), cmap="gray")
         plt.title(f"Optimal patch = {self.best_solution}")
         plt.show()
@@ -119,7 +126,7 @@ class SimulatedAnnealingOptimizer(Optimizer):
             disable=not self._debug,
         ):
             x, y = self._random_neighbor()
-            new_cost = self._objective_function(
+            new_cost = -self._objective_function(
                 x=x,
                 y=y,
                 img=img,

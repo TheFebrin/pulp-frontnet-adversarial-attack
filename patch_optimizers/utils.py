@@ -16,6 +16,7 @@ def single_vector_element_cost_f_ground_truth(
     ground_truth,
     element_index: int,
 ) -> float:
+    raise RuntimeError("Use single_vector_element_cost_f")
     assert 0 <= element_index <= 3
     assert len(ground_truth.shape) == 1
     res = (

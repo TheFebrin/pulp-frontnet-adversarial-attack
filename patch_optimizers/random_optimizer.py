@@ -41,7 +41,7 @@ class RandomOptimizer(Optimizer):
         )
         cost_for_each_dot = []
         model_raw_prediction = self._model(img.unsqueeze(0))
-        
+
         for x, y in generated_dots:
             img_copy = img.clone()
             apply_path(
