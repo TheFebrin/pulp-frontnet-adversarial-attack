@@ -175,9 +175,12 @@ def main() -> None:
 
     factory_idx = int(input("Enter optimizer factory index: "))
 
-    db = TinyDB(
-        f"results_dbs/{index_to_db_name[factory_idx]}_{element_index_to_name[element_index]}.json"
-    )
+    if element_index is not None:
+        db = TinyDB(
+            f"results_dbs/{index_to_db_name[factory_idx]}_{element_index_to_name[element_index]}.json"
+        )
+    else:
+        db = TinyDB(f"results_dbs/{index_to_db_name[factory_idx]}_targeted.json")
 
     run_process(
         optimizer_factory=optimizer_factories[int(factory_idx)],
